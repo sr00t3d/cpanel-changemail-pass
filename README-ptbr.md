@@ -1,97 +1,106 @@
-# cPanel/WHM Email Password Auto-Changer 🔐
+# cPanel Email Password Auto-Changer (`cp-changemail-pass.sh`)
 
-Readme: [EN](README.md)
+![Capa do cPanel Email Password Auto-Changer](./cp-changemail-pass-cover.webp)
 
-![License](https://img.shields.io/github/license/sr00t3d/cpanel-changemail-pass) ![Shell Script](https://img.shields.io/badge/shell-script-green)
+[![Versão](https://img.shields.io/badge/version-2.0.0-blue.svg)](./cp-changemail-pass.sh)
+[![Licença](https://img.shields.io/badge/license-Apache--2.0-green.svg)](./LICENSE)
+[![Plataforma](https://img.shields.io/badge/platform-Linux%20%7C%20cPanel%20%2F%20WHM%20%7C%20UAPI-orange.svg)](#requisitos)
 
-<img width="700" src="cp-changemail-pass-cover.webp" />
+> 🇺🇸 **[Read in English (README.md)](./README.md)**
 
-Um script em Bash simples e eficiente para automatizar a alteração de senhas de contas de e-mail diretamente via linha de comando (SSH) em servidores WHM/cPanel.
+O **cPanel Email Password Auto-Changer** (`cp-changemail-pass.sh` v2.0.0) é uma ferramenta CLI em Bash para automatizar a troca individual ou em lote de senhas de contas de e-mail em servidores cPanel/WHM via UAPI `Email passwd_pop`. Possui geração segura de senhas via CSPRNG (OpenSSL), processamento por arquivo de lote, rotação de domínio completo, simulação dry-run, mascaramento de senhas e relatórios em `table`, `json` ou `csv`.
 
-Desenvolvido para facilitar a rotina de administradores de infraestrutura e suporte N2/N3, permitindo a troca rápida de senhas sem a necessidade de navegar pela interface gráfica do cPanel.
+---
 
-## 🚀 Funcionalidades
+## Funcionalidades
 
-* **Geração Segura de Senhas:** Utiliza `openssl` para gerar senhas fortes de 16 caracteres.
-* **Formatação Alfanumérica:** A senha gerada contém apenas letras e números, evitando problemas de formatação e login em clientes de e-mail mais antigos ou incompatíveis com caracteres especiais.
-* **Validação de Entrada:** Verifica automaticamente se o formato do e-mail é válido e se não está em branco.
-* **Verificação de Domínio e Usuário:** Checa se o domínio resolve localmente, se está cadastrado no servidor (`/etc/trueuserdomains`) e identifica o proprietário automaticamente via `/scripts/whoowns`.
-* **Uso da API Nativa:** Utiliza o comando `uapi` oficial do cPanel, garantindo que a alteração seja feita de forma limpa e sem falhas (evitando *parsing* frágil de arquivos internos).
+- **Troca Individual ou em Lote:** Altere um único e-mail (`-e`), processe uma lista em arquivo (`-f`) ou rotacione todas as contas de um domínio (`-d`).
+- **Geração Segura via CSPRNG:** Gera senhas alfanuméricas de 16 caracteres (customizável via `-l`) utilizando OpenSSL ou `/dev/urandom`, evitando caracteres que quebram clientes de e-mail. Permite também definir senha fixa com `-p`.
+- **Modo Simulação Dry-Run (`-n, --dry-run`):** Valida formato de e-mail, dono da conta e existência sem alterar credenciais em produção.
+- **Segurança e Privacidade:** Permite mascarar senhas na tela (`--mask-passwords`) para gravações/demonstrações e exportar para arquivo CSV seguro (`-s, --save-csv`) com permissão restrita `chmod 600`.
+- **Saídas Estruturadas para Automação:** Relatórios em `table` (padrão), `json` ou `csv`. Retorna exit code `0` em sucesso e `2` se alguma alteração falhar.
 
-## 🛠️ Pré-requisitos
+---
 
-Para que o script funcione corretamente, você precisa de:
+## Requisitos
 
-* Acesso SSH ao servidor com privilégios de `root` (necessário para ler `/etc/trueuserdomains` e executar `/scripts/whoowns`).
-* Servidor rodando **WHM/cPanel**.
-* Pacote `openssl` instalado (nativo na maioria das distribuições Linux).
+- Linux com Bash 4.0+ e Python 3.6+
+- Servidor cPanel & WHM com `/usr/bin/uapi` e `/scripts/whoowns`
+- Acesso root ou privilégios de usuário da conta cPanel
 
-## 📥 Instalação [Modo hospedado]
+---
 
-1. **Baixe o arquivo no servidor:**
-
-```bash
-curl -O https://raw.githubusercontent.com/sr00t3d/cpanel-changemail-pass/refs/heads/main/cp-changemail-pass.sh
-```
-
-2. **Dê permissão de execução:**
+## Instalação
 
 ```bash
+git clone https://github.com/sr00t3d/cpanel-changemail-pass.git
+cd cpanel-changemail-pass
 chmod +x cp-changemail-pass.sh
 ```
 
-3. **Execute o script:**
+---
+
+## Como usar
 
 ```bash
-./cp-changemail-pass.sh
+# Alterar senha de um único e-mail gerando senha segura:
+sudo ./cp-changemail-pass.sh -e admin@example.com
+
+# Simular em dry-run uma rotação em lote a partir de arquivo:
+sudo ./cp-changemail-pass.sh -f emails.txt --dry-run
+
+# Rotacionar todos os e-mails de um domínio e salvar credenciais em CSV seguro:
+sudo ./cp-changemail-pass.sh -d example.com -s /root/senhas.csv
+
+# Mascarar senhas na tela do terminal:
+sudo ./cp-changemail-pass.sh -e admin@example.com --mask-passwords
+
+# Exportar relatório em JSON:
+sudo ./cp-changemail-pass.sh -f emails.txt -o json
 ```
 
-## 💻 Como usar
+### Opções da CLI
 
-### Modo hospedado
+| Opção | Descrição |
+| :--- | :--- |
+| `-e, --email <endereço>` | E-mail de destino único |
+| `-f, --file <caminho>` | Arquivo com lista de e-mails (um por linha) |
+| `-d, --domain <domínio>` | Rotaciona todas as contas sob o domínio |
+| `-u, --user <usuário>` | Usuário cPanel explícito (pula detecção automática) |
+| `-p, --password <senha>` | Senha fixa para todas as contas processadas |
+| `-l, --length <int>` | Tamanho da senha gerada (padrão: 16, mín: 12) |
+| `-n, --dry-run` | Modo de simulação (nenhuma alteração é feita) |
+| `--mask-passwords` | Mascara as senhas no terminal (`********`) |
+| `-s, --save-csv <path>` | Salva mapeamento em arquivo seguro (`chmod 600`) |
+| `-o, --output <fmt>` | Formato de saída: `table` (padrão), `json`, `csv` |
+| `-q, --quiet` | Suprime mensagens de progresso |
+| `--no-color` | Desativa cores ANSI |
+| `-V, --version` | Exibe a versão e encerra |
+| `-h, --help` | Exibe a ajuda e encerra |
 
-Execute o script passando o endereço de e-mail completo como parâmetro:
+---
 
-```bash
-./cp-changemail-pass.sh mail@dominio.com
+## Exemplo de Saída Real
+
+Capturado em container AlmaLinux 8.10 / cPanel executando lote em modo dry-run sobre 4 contas de teste (2 válidas simuladas, 1 com sintaxe inválida, 1 com domínio não registrado):
+
+```text
+================================================================================================================
+ CPANEL EMAIL PASSWORD CHANGER v2.0.0 | Mode: DRY-RUN | Targets: 4
+================================================================================================================
+EMAIL                            | USER         | PASSWORD                 | STATUS     | NOTE
+----------------------------------------------------------------------------------------------------------------
+admin@example.com                | cpaneluser   | GPCeCALKgzn6mGFP         | SIMULATED  | Dry-run (no changes made)
+support@example.com              | cpaneluser   | CUgcSf16aBEoYgeV         | SIMULATED  | Dry-run (no changes made)
+invalid-email-format             | none         | 9gLnu9VfvR6IJCsg         | FAILED     | Invalid email format
+billing@unregistered-domain-999. | none         | 8YhVEdfUdWnSbOFJ         | FAILED     | Domain not registered on server
+================================================================================================================
+ Summary: 4 processed | Success/Simulated: 2 | Failed: 2
+================================================================================================================
 ```
 
-### Modo direto
+---
 
-```bash
-bash <(curl -fsSL 'https://raw.githubusercontent.com/sr00t3d/cpanel-changemail-pass/refs/heads/main/cp-changemail-pass.sh') mail@dominio.com
-```
+## Licença
 
-Exemplo de Saída (Sucesso):
-
-```bash
-Domain seudominio.com.br is registered on the server
-
-Password for the email address mail@dominio.com successfully changed, see the details below:
-
-Email: mail@dominio.com
-Password: aB3dE5fG7hI9jK1l
-```
-
-Exemplo de Saída (Erro)
-
-```bash
-Se o e-mail não existir ou o formato for inválido, o script interromperá a execução com um alerta claro:
-
-[!] - The email mail@dominio.com does not exist on the server.
-```
-
-## ⚠️ Aviso Legal
-
-> [!WARNING]
-> Este software é fornecido "tal como está". Certifique-se sempre de ter permissão explícita antes de executar. O autor não se responsabiliza por qualquer uso indevido, consequências legais ou impacto nos dados causados ​​por esta ferramenta.
-
-## 📚 Detailed Tutorial
-
-Para um guia completo, passo a passo, confira meu artigo completo:
-
-👉 [**Mudança rápida de senha de e-mail do cpanel**](https://perciocastelo.com.br/blog/quick-change-cpanel-email-password.html)
-
-## Licença 📄
-
-Este projeto está licenciado sob a **GNU General Public License v3.0**. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+Distribuído sob a [Licença Apache-2.0](./LICENSE).
